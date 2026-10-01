@@ -91,9 +91,16 @@ testé à la main est donc ce qui tourne automatiquement.
 ```bash
 task              # liste les tâches
 task doctor       # vérifie outils et identifiants
+task build        # compile le CSS et prépare dist/
 task deploy       # construit, contrôle, envoie, vérifie
-task deploy:dry   # simulation, sans rien écrire
+task deploy:dry   # simulation, sans rien écrire sur le serveur
+task verify       # contrôle que le site répond en ligne
+task serve        # prévisualise en local, sans cache
 ```
+
+Prérequis en local : `node`, `npm`, `lftp` (`brew install lftp`) et
+[go-task](https://taskfile.dev) (`brew install go-task`). `task doctor` les
+vérifie, ainsi que la présence des identifiants.
 
 En local les identifiants viennent de `.env` ; en CI, des secrets GitHub. Task
 ignore un `.env` absent, et une variable d'environnement prime toujours sur le
@@ -175,14 +182,15 @@ npm run build    # compilation unique, minifiée
 Recompiler n'est nécessaire que si vous ajoutez de **nouvelles** classes
 Tailwind dans le HTML ou le JS.
 
-> **⚠️ Déploiement manuel uniquement** — après toute modification de
-> `site.css` ou `site.js`, incrémentez le numéro de version dans `index.html`
-> et `404.html` : `site.css?v=16` → `?v=17`.
+> **Le cache des assets se gère tout seul.** `.htaccess` demande aux
+> navigateurs de conserver `site.css` et `site.js` pendant un an
+> (`immutable`) : sans changement d'URL, un visiteur déjà venu ne recevrait
+> jamais la nouvelle version.
 >
-> `.htaccess` demande aux navigateurs de conserver ces fichiers un an
-> (`immutable`). Sans changement d'URL, un visiteur déjà venu ne recevrait
-> **jamais** la nouvelle version. **La CI s'en charge automatiquement** (elle y
-> met le SHA du commit) : ce réflexe ne concerne que les envois à la main.
+> Le `?v=` présent dans le dépôt n'est donc qu'une valeur de repli. Au
+> déploiement — en local comme en CI — il est remplacé par le SHA du commit,
+> plus un horodatage si l'arbre de travail est modifié. Rien à incrémenter à
+> la main.
 
 ## 3. Prévisualiser en local
 
@@ -207,13 +215,18 @@ assets/img/             Logo, portrait, illustrations, photos, icônes
 .htaccess               Configuration Apache (HTTPS, cache, sécurité, redirections)
 robots.txt  sitemap.xml  site.webmanifest  favicon.ico
 
+Taskfile.yml            Déploiement : build, check, upload, verify
+package.sh              Construit dist/ (appelé par le Taskfile)
 serve.py                Serveur local sans cache
-package.sh              Construit dist/ et l'archive de déploiement
 package.json            Scripts npm
 .github/workflows/
-  deploy.yml            Pipeline CI/CD vers o2switch
+  deploy.yml            Appelle `task deploy` sur push vers main
 DEPLOIEMENT.md          Bascule depuis WordPress + configuration de la CI
+.env                    Identifiants FTP — NON versionné, local uniquement
 ```
+
+Le dossier `dist/` et l'archive de déploiement sont régénérés à chaque build
+et ne sont pas versionnés.
 
 ## 5. Visuels
 

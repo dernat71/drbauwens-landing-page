@@ -27,6 +27,9 @@ blob-report/
 .playwright/
 *.webm
 
+# ─── Cache de go-task (empreintes de tâches, purement local) ───────
+.task/
+
 # ─── Artefacts de construction et de déploiement ───────────────────
 # Régénérés par `npm run package`, jamais à versionner.
 dist/
