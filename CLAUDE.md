@@ -97,6 +97,12 @@ métier et les localités. **Ne pas sortir ce span du h1.**
 **Deux balises `google-site-verification`** dans le `<head>` viennent de
 l'ancien site. Les supprimer ferait perdre l'accès à Google Search Console.
 
+**`priceRange` est volontairement absent** du JSON-LD. Le test des résultats
+enrichis le signale comme facultatif manquant : c'est **normal et assumé**.
+Les honoraires d'un généraliste sont encadrés, pas une fourchette
+commerciale, et rien ne justifie d'inventer une valeur. Ne pas « corriger »
+cet avertissement.
+
 ---
 
 ## Les annonces
