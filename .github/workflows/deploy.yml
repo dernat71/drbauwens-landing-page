@@ -1,0 +1,105 @@
+name: Déploiement o2switch
+
+# Déploie le site sur docteurbauwens.be à chaque push sur main.
+#
+# Particularité o2switch : le pare-feu n'accepte le SSH que depuis des IP
+# explicitement autorisées, et les runners GitHub en changent à chaque
+# exécution. Le job ouvre donc son IP via l'API cPanel avant le rsync, et la
+# referme ensuite — impérativement, car le compte est limité à 5 exceptions.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:        # permet aussi un déclenchement manuel
+
+concurrency:
+  group: deploiement-production
+  cancel-in-progress: false   # ne jamais interrompre un déploiement en cours
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+
+    env:
+      CPANEL: https://${{ secrets.O2SWITCH_SERVER }}:2083
+      AUTH: cpanel ${{ secrets.O2SWITCH_USER }}:${{ secrets.O2SWITCH_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Construire le site
+        run: |
+          npm ci
+          ASSET_VERSION="${GITHUB_SHA::8}" bash package.sh --no-zip
+
+      - name: Vérifier que la construction a produit quelque chose
+        # Garde-fou : un dist/ vide combiné au --delete du rsync effacerait
+        # le site en production.
+        run: |
+          test -f dist/index.html || { echo "::error::dist/index.html manquant"; exit 1; }
+          test -f dist/.htaccess  || { echo "::error::dist/.htaccess manquant"; exit 1; }
+          test -s dist/assets/css/site.css || { echo "::error::CSS vide"; exit 1; }
+          echo "$(find dist -type f | wc -l) fichiers prêts"
+
+      - name: Relever l'IP publique du runner
+        id: ip
+        run: |
+          IP=$(curl -fsS --max-time 10 https://api.ipify.org \
+            || curl -fsS --max-time 10 https://ifconfig.me/ip)
+          [[ "$IP" =~ ^[0-9.]+$ ]] || { echo "::error::IP invalide : $IP"; exit 1; }
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+          echo "IP du runner : $IP"
+
+      - name: Autoriser cette IP sur le pare-feu
+        run: |
+          curl -fsS --max-time 45 -H "Authorization: $AUTH" \
+            "$CPANEL/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ip }}&port=22" \
+            | tee /tmp/ajout.json
+          grep -q '"errors":null' /tmp/ajout.json \
+            || { echo "::error::Échec de l'ouverture pare-feu"; exit 1; }
+
+      - name: Installer la clé SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.O2SWITCH_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 20 -p 22 "${{ secrets.O2SWITCH_SERVER }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Envoyer les fichiers
+        run: |
+          rsync -az --delete --no-perms --no-owner --no-group \
+            --exclude '.well-known' --exclude 'cgi-bin' --exclude '.htpasswd' \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes" \
+            dist/ \
+            "${{ secrets.O2SWITCH_USER }}@${{ secrets.O2SWITCH_SERVER }}:${{ secrets.O2SWITCH_DEPLOY_PATH }}/"
+
+      - name: Refermer le pare-feu
+        if: always()          # même si une étape précédente a échoué
+        run: |
+          curl -fsS --max-time 45 -H "Authorization: $AUTH" \
+            "$CPANEL/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ip }}&port=22&direction=in" \
+            || echo "::warning::Nettoyage du pare-feu impossible — vérifier les exceptions dans le cPanel"
+
+      - name: Effacer la clé privée
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519
+
+      - name: Contrôler le site en ligne
+        run: |
+          sleep 5
+          for url in https://docteurbauwens.be/ https://docteurbauwens.be/sitemap.xml; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -L "$url")
+            echo "$code  $url"
+            [[ "$code" == "200" ]] || { echo "::error::$url répond $code"; exit 1; }
+          done
+          curl -sS https://docteurbauwens.be/ | grep -q "${GITHUB_SHA::8}" \
+            && echo "Version ${GITHUB_SHA::8} bien en ligne" \
+            || echo "::warning::La version déployée n'apparaît pas encore (cache ?)"

@@ -1,0 +1,93 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Site du Dr Marie-Sarah Bauwens
+#  Stack : HTML/CSS/JS statique · Tailwind CSS v4 (Node) · Playwright (uv)
+# ═══════════════════════════════════════════════════════════════════
+
+# ─── Node / npm ────────────────────────────────────────────────────
+node_modules/
+.npm/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+# package-lock.json est VOLONTAIREMENT versionné : il fige les versions
+# utilisées par la CI (npm ci en dépend).
+
+# ─── Python / uv (outillage de vérification Playwright) ────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.python-version
+.uv/
+
+# ─── Playwright ────────────────────────────────────────────────────
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+*.webm
+
+# ─── Artefacts de construction et de déploiement ───────────────────
+# Régénérés par `npm run package`, jamais à versionner.
+dist/
+docteurbauwens-site.zip
+*.zip
+*.tar.gz
+
+# ⚠️ NE PAS ignorer assets/css/site.css :
+# le CSS compilé est volontairement versionné. Le serveur o2switch ne fait
+# aucun build — c'est ce fichier qui est servi tel quel. L'ignorer casserait
+# le site à la première mise en ligne manuelle.
+
+# ─── Dossiers de travail (captures, scrapes, brouillons) ───────────
+_scrape/
+_verif/
+_tmp/
+_brouillons/
+scratch/
+tmp/
+*.local.*
+
+# ─── Secrets — jamais dans le dépôt ────────────────────────────────
+# Les identifiants o2switch (jeton d'API, clé SSH de déploiement) vivent
+# dans les secrets GitHub Actions, pas ici. Voir DEPLOIEMENT.md § 5.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+.htpasswd
+*credentials*
+*secret*
+!**/secrets-*.md
+
+# ─── Système d'exploitation ────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Éditeurs ──────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.sublime-*
+
+# ─── Claude Code ───────────────────────────────────────────────────
+# Les réglages partagés (.claude/settings.json) se versionnent ;
+# les réglages et permissions locaux ne concernent que votre machine.
+.claude/settings.local.json
+.claude/*.local.json

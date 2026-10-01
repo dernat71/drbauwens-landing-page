@@ -1,0 +1,16 @@
+{
+  "name": "docteurbauwens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site statique du cabinet du Dr Marie-Sarah Bauwens (Grand-Reng)",
+  "scripts": {
+    "build": "tailwindcss -i src/input.css -o assets/css/site.css --minify",
+    "dev": "tailwindcss -i src/input.css -o assets/css/site.css --watch",
+    "serve": "python3 serve.py",
+    "package": "npm run build && bash package.sh"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "tailwindcss": "^4.1.11"
+  }
+}
