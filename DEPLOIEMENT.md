@@ -103,91 +103,98 @@ Let's Encrypt). Pour le confirmer : cPanel → **Sécurité** → **Let's Encryp
 
 ## 5. Automatiser avec GitHub Actions
 
-Le workflow `.github/workflows/deploy.yml` construit le site et l'envoie par
-rsync à chaque push sur `main`.
+Le workflow `.github/workflows/deploy.yml` construit le site et l'envoie en
+**FTPS** à chaque push sur `main`.
 
-### L'obstacle, et comment il est contourné
+### Pourquoi FTPS et non SSH
 
-o2switch n'accepte les connexions SSH que depuis des **IP explicitement
-autorisées**, et le compte est limité à **5 exceptions**. Or les runners
-GitHub changent d'IP à chaque exécution : un rsync naïf serait bloqué.
+Le premier pipeline passait par rsync over SSH. Deux obstacles l'ont écarté :
 
-Le workflow utilise donc l'API cPanel, que la documentation o2switch prévoit
-justement pour ce cas :
+1. **Le port 22 n'est ouvert qu'aux IP en liste blanche** (5 au maximum),
+   alors que les runners GitHub changent d'IP à chaque exécution.
+2. Contourner cela demandait un **jeton d'API cPanel** — mais l'interface
+   *Manage API Tokens* est marquée « expérimentale » et n'affiche aucun
+   formulaire sur ce serveur.
 
-1. il relève l'IP publique du runner ;
-2. il l'ajoute au pare-feu via `SshWhitelist/add` ;
-3. il envoie les fichiers par rsync ;
-4. il retire l'exception via `SshWhitelist/remove`.
+Test de connectivité depuis l'extérieur :
 
-L'étape 4 porte `if: always()` : elle s'exécute même si le rsync échoue. Sans
-cela, les 5 emplacements se rempliraient en quelques déploiements ratés et
-plus aucune connexion SSH ne serait possible.
+```
+port 21   (FTP)     ouvert     ← aucune restriction d'IP
+port 22   (SSH)     filtré
+port 2083 (cPanel)  ouvert
+```
 
-### Les cinq secrets à créer
+Le port 21 étant libre et FTPS chiffrant la connexion, cette voie supprime
+d'un coup le jeton d'API, la clé SSH et la gymnastique d'ouverture de
+pare-feu. Le pipeline passe de 11 à 6 étapes.
 
-Dépôt GitHub → **Settings** → **Secrets and variables** → **Actions**.
+### Les quatre secrets à créer
+
+Dépôt GitHub → **Settings** → **Environments** → `production` → *Add secret*.
 
 | Secret | Valeur | Où la trouver |
 |---|---|---|
-| `O2SWITCH_SERVER` | `xxxxx.o2switch.net` | cPanel, encart *Informations générales* |
-| `O2SWITCH_USER` | votre identifiant cPanel | idem |
-| `O2SWITCH_API_TOKEN` | le jeton d'API | cPanel → *Sécurité* → **Gérer les jetons d'API** |
-| `O2SWITCH_SSH_KEY` | la **clé privée** (contenu complet, avec les lignes `BEGIN`/`END`) | générée ci-dessous |
-| `O2SWITCH_DEPLOY_PATH` | `/home/VOTRE_USER/public_html` | cPanel, chemin du répertoire personnel |
+| `O2SWITCH_FTP_SERVER` | `batterie.o2switch.net` | barre d'adresse du cPanel |
+| `O2SWITCH_FTP_USER` | l'utilisateur du compte FTP | cPanel → **Comptes FTP** |
+| `O2SWITCH_FTP_PASSWORD` | son mot de passe | défini à la création du compte |
+| `O2SWITCH_FTP_DIR` | `/public_html/` (**avec** le slash final) | — |
 
-Le jeton d'API ne s'affiche **qu'une seule fois** à la création.
+### Créer un compte FTP dédié
 
-### Générer la paire de clés SSH
+cPanel → chercher « FTP » → **Comptes FTP** → *Ajouter un compte FTP*.
 
-Sur votre machine :
+- **Répertoire** : `public_html` — le compte ne verra que le site, rien d'autre
+  du serveur.
+- **Quota** : illimité.
 
-```bash
-ssh-keygen -t ed25519 -C "github-actions-docteurbauwens" -f ~/.ssh/o2switch_deploy -N ""
-cat ~/.ssh/o2switch_deploy.pub     # la clé PUBLIQUE
-cat ~/.ssh/o2switch_deploy         # la clé PRIVÉE → secret GitHub
-```
+Mieux vaut un compte dédié que votre compte principal : son mot de passe vit
+dans GitHub, et il se révoque sans conséquence sur le reste de l'hébergement.
 
-La **publique** se dépose dans cPanel → **Sécurité** → **Accès SSH** →
-*Gérer les clés SSH* → *Importer une clé*, puis il faut l'**autoriser**
-(bouton *Manage* → *Authorize*). La **privée** va dans le secret
-`O2SWITCH_SSH_KEY` et ne quitte jamais GitHub.
+Le `server-dir` dépend du répertoire racine donné au compte FTP :
 
-Utilisez une clé dédiée au déploiement, pas votre clé personnelle : elle se
-révoque sans conséquence si besoin.
+- compte limité à `public_html` → `O2SWITCH_FTP_DIR` = `/`
+- compte sur tout le répertoire personnel → `O2SWITCH_FTP_DIR` = `/public_html/`
 
-### Les garde-fous du workflow
+Dans le doute, lancez le workflow une première fois : les journaux affichent
+le chemin atteint.
+
+### Les garde-fous
 
 - **Vérification de la construction** — le job s'arrête si `dist/index.html`,
-  `dist/.htaccess` ou le CSS manquent. Sans ce contrôle, un `dist/` vide
-  combiné au `--delete` du rsync effacerait le site en production.
-- **Exclusions rsync** — `.well-known` (renouvellement des certificats),
-  `cgi-bin` et `.htpasswd` sont préservés côté serveur.
+  `dist/.htaccess` ou le CSS manquent.
+- **Transfert incrémental** — un fichier d'état `.github-deploy-state.json`
+  reste sur le serveur ; seuls les fichiers modifiés remontent.
+- **Exclusions** — `.well-known` (renouvellement des certificats), `cgi-bin`
+  et `.htpasswd` sont préservés.
 - **`concurrency`** — deux déploiements ne peuvent pas se chevaucher.
-- **Version des assets automatique** — le `?v=` des liens CSS/JS est remplacé
-  par le SHA court du commit. Plus besoin de l'incrémenter à la main, et les
-  visiteurs reçoivent toujours la bonne version.
-- **Contrôle final** — le job vérifie que le site répond en 200 et que la
-  version déployée est bien celle du commit.
+- **Version des assets automatique** — le `?v=` est remplacé par le SHA court
+  du commit. Plus besoin de l'incrémenter à la main.
+- **Contrôle final** — le job vérifie que le site répond 200 et que la version
+  en ligne est bien celle du commit.
+
+> Le workflow n'efface rien par défaut : `dangerous-clean-slate` n'est pas
+> activé. Les fichiers WordPress résiduels ne disparaîtront donc pas tout
+> seuls — d'où l'étape 2, à faire avant.
 
 ### Le premier déploiement
 
-Testez d'abord à la main via **Actions** → *Déploiement o2switch* → **Run
-workflow**. Si l'étape « Autoriser cette IP » échoue, c'est en général le
-jeton d'API ou le nom du serveur ; si c'est le rsync, la clé publique n'a
-probablement pas été *autorisée* dans cPanel (l'importer ne suffit pas).
+Lancez-le à la main : **Actions** → *Déploiement o2switch* → **Run workflow**.
+Vous voyez alors chaque étape passer.
 
-Pour lister ou vider les exceptions restées ouvertes :
+En cas d'échec à l'envoi, l'erreur vient presque toujours du couple
+identifiants / `server-dir`. Pour tester vos identifiants FTP sans la CI :
 
 ```bash
-curl -H "Authorization: cpanel USER:TOKEN" \
-  "https://SERVEUR.o2switch.net:2083/execute/SshWhitelist/list"
-
-curl -H "Authorization: cpanel USER:TOKEN" \
-  "https://SERVEUR.o2switch.net:2083/execute/SshWhitelist/remove_all"
+curl -v --ftp-ssl --user "UTILISATEUR:MOTDEPASSE" \
+  ftp://batterie.o2switch.net/ --list-only
 ```
 
----
+### Si vous préférez revenir à SSH
+
+La voie reste ouverte si o2switch corrige son interface de jetons d'API, ou si
+le support vous en génère un. Il faudrait alors rétablir les étapes
+`SshWhitelist/add` et `SshWhitelist/remove` autour du rsync — avec
+`if: always()` sur la fermeture, sous peine de saturer les 5 emplacements.
 
 ## Mettre à jour le site, ensuite
 
