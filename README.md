@@ -18,7 +18,7 @@ lire tels quels, sans rien exécuter côté serveur.
 |---|---|---|
 | **HTML** | `index.html`, une seule page | Tout le contenu y est écrit en clair |
 | **CSS** | `assets/css/site.css` | Généré par Tailwind, **versionné compilé** |
-| **JavaScript** | `assets/js/site.js`, ~8 Ko | Vanilla, aucune bibliothèque |
+| **JavaScript** | `assets/js/site.js` | Vanilla, aucune bibliothèque |
 
 ### Pourquoi « statique » change tout
 
@@ -36,7 +36,7 @@ suivre, rien qui puisse « casser » après une montée de version. Le site peut
 Plutôt que d'écrire du CSS à la main, on compose les styles avec des classes
 utilitaires directement dans le HTML (`flex`, `mt-6`, `rounded-full`…). Tailwind
 lit les fichiers, repère les classes employées et génère **uniquement** le CSS
-correspondant — d'où un fichier final de ~32 Ko.
+correspondant : rien d'inutilisé n'est livré.
 
 Le point important : `assets/css/site.css` est **compilé et versionné dans le
 dépôt**. Le serveur ne construit rien. Node n'intervient que sur votre machine
@@ -244,7 +244,7 @@ Tous repris de la médiathèque de l'ancien site :
 | `line-1.svg`, `line-2.svg` | Courbes décoratives du thème | Hero, CTA final |
 
 L'illustration médecin/patient est servie en WebP avec un repli PNG quantifié
-en 64 couleurs (33 Ko au lieu de 577 Ko, sans perte visible sur un aplat).
+en 64 couleurs — bien plus léger, sans perte visible sur un aplat.
 `visite-domicile.svg` a été recoloré du noir pur vers l'indigo de la charte.
 
 ## 6. Services externes
@@ -261,8 +261,8 @@ La carte affiche la **fiche Google Maps du cabinet** — celle qui porte le nom,
 les avis et l'itinéraire. L'embed fonctionne **sans clé API**.
 
 Elle porte `loading="lazy"` : le navigateur ne la charge qu'à l'approche du
-visiteur. Un visiteur qui ne descend jamais jusqu'au contact ne télécharge rien
-(page à 144 Ko) ; la carte ajoute ~1,2 Mo uniquement pour ceux qui l'atteignent.
+visiteur. La carte pèse plus lourd que tout le reste du site réuni — autant ne
+la servir qu'à ceux qui descendent jusqu'au contact.
 
 Si la question de la vie privée se posait : l'`<iframe>` transmet l'IP du
 visiteur à Google dès son chargement, sans consentement. Elle ne dépose aucun
@@ -302,4 +302,3 @@ dans les moteurs de réponse IA, mais n'attendez pas d'affichage enrichi.
 - Animations désactivées si `prefers-reduced-motion` est actif.
 - Images en WebP avec repli JPEG/PNG, `srcset` responsive, `loading="lazy"`.
 - Vérifié sans débordement horizontal de 360 à 1920 px.
-- Page à 144 Ko au chargement initial (hors carte).

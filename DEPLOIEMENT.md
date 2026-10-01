@@ -72,7 +72,8 @@ Puis cPanel → **Gestionnaire de fichiers** → entrer dans `public_html` →
 le `.zip`.
 
 Les fichiers sont à la racine de l'archive, ils se placent donc directement au
-bon endroit. À 1,9 Mo, l'outil de décompression de cPanel convient ; o2switch
+bon endroit. L'archive est assez petite pour l'outil de décompression de
+cPanel ; o2switch
 le déconseille seulement pour les gros dossiers.
 
 **Vérifiez que `.htaccess` est bien présent** (fichiers cachés affichés). C'est

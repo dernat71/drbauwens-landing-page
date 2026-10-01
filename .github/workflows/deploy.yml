@@ -15,7 +15,27 @@ name: Déploiement o2switch
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md']
+    # Liste d'inclusion plutôt que d'exclusion : on ne déploie que si quelque
+    # chose qui finit réellement sur le serveur change, ou qui influe sur la
+    # construction. Modifier la documentation, le .gitignore ou le serveur de
+    # développement ne déclenche donc rien.
+    paths:
+      # Fichiers servis tels quels
+      - 'index.html'
+      - '404.html'
+      - '.htaccess'
+      - 'favicon.ico'
+      - 'robots.txt'
+      - 'sitemap.xml'
+      - 'site.webmanifest'
+      - 'assets/**'
+      # Sources et outils qui changent le contenu de dist/
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'package.sh'
+      - 'Taskfile.yml'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       simulation:
