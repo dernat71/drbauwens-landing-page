@@ -65,6 +65,8 @@ seuls les enrichissements disparaissent.
 | Outil | Quand | Où |
 |---|---|---|
 | **Node + npm** | compilation du CSS | votre machine, runner GitHub |
+| **go-task** | orchestration du déploiement | votre machine, runner GitHub |
+| **lftp** | transfert FTPS | votre machine, runner GitHub |
 | **Python + uv + Playwright** | vérifications visuelles | votre machine uniquement |
 | **Google Fonts** | Literata, Public Sans | chargées par le visiteur |
 
@@ -75,14 +77,27 @@ Ni Node ni Python ne tournent sur le serveur.
 ## Comment le site est déployé
 
 ```
-  votre machine          GitHub Actions                    o2switch
-  ─────────────          ──────────────                    ────────
-  git push main  ───►   npm ci                             
-                        npm run build   (Tailwind → CSS)
-                        package.sh      (→ dist/)
-                     envoi FTPS ────────(port 21)──────►  public_html/
-                        vérifie que le site répond 200
+            ┌─────────────────────────────┐
+  task deploy ──►│  build → check → upload →   │──► o2switch
+            │     verify   (Taskfile)     │     public_html/
+  git push ──►   └─────────────────────────────┘     (FTPS, port 21)
+  (GitHub Actions appelle la même tâche)
 ```
+
+**Une seule implémentation du déploiement.** Le workflow GitHub Actions ne fait
+qu'appeler `task deploy` — exactement ce que vous lancez en local. Ce qui est
+testé à la main est donc ce qui tourne automatiquement.
+
+```bash
+task              # liste les tâches
+task doctor       # vérifie outils et identifiants
+task deploy       # construit, contrôle, envoie, vérifie
+task deploy:dry   # simulation, sans rien écrire
+```
+
+En local les identifiants viennent de `.env` ; en CI, des secrets GitHub. Task
+ignore un `.env` absent, et une variable d'environnement prime toujours sur le
+fichier — les deux usages cohabitent sans configuration.
 
 Trois particularités valent d'être connues :
 

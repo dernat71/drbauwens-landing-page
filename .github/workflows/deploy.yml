@@ -2,15 +2,15 @@ name: Déploiement o2switch
 
 # Déploie le site sur docteurbauwens.be à chaque push sur main.
 #
-# Pourquoi FTPS et non SSH : chez o2switch, le port 22 n'est accessible
-# qu'aux IP inscrites en liste blanche (5 au maximum), ce qui est incompatible
-# avec des runners GitHub dont l'IP change à chaque exécution. Contourner cela
-# demandait un jeton d'API cPanel — mais l'interface « Manage API Tokens » est
-# marquée expérimentale et ne fonctionne pas sur ce serveur.
+# Ce workflow n'implémente rien lui-même : il appelle les mêmes tâches que
+# vous lancez en local (`task deploy`). Une seule implémentation du
+# déploiement, donc ce qui est testé à la main est exactement ce qui tourne
+# ici.
 #
-# Le port 21 est lui accessible sans restriction d'IP (vérifié), et FTPS
-# chiffre la connexion. Résultat : ni jeton d'API, ni clé SSH, ni ouverture
-# de pare-feu à gérer.
+# Pourquoi FTPS et non SSH : chez o2switch le port 22 n'est ouvert qu'aux IP
+# en liste blanche (5 maximum), incompatible avec des runners dont l'IP change
+# à chaque exécution. Le port 21 est accessible sans restriction, et FTPS
+# chiffre la connexion.
 
 on:
   push:
@@ -33,6 +33,12 @@ jobs:
     environment: production
     timeout-minutes: 15
 
+    env:
+      O2SWITCH_FTP_SERVER: ${{ secrets.O2SWITCH_FTP_SERVER }}
+      O2SWITCH_FTP_USER: ${{ secrets.O2SWITCH_FTP_USER }}
+      O2SWITCH_FTP_PASSWORD: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
+      O2SWITCH_FTP_DIR: ${{ secrets.O2SWITCH_FTP_DIR }}
+
     steps:
       - uses: actions/checkout@v7
 
@@ -41,54 +47,16 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Construire le site
-        run: |
-          npm ci
-          ASSET_VERSION="${GITHUB_SHA::8}" bash package.sh --no-zip
-
-      - name: Vérifier que la construction a produit quelque chose
-        # Garde-fou : sans ce contrôle, un dist/ incomplet partirait en ligne.
-        run: |
-          test -f dist/index.html || { echo "::error::dist/index.html manquant"; exit 1; }
-          test -f dist/.htaccess  || { echo "::error::dist/.htaccess manquant"; exit 1; }
-          test -s dist/assets/css/site.css || { echo "::error::CSS vide"; exit 1; }
-          echo "$(find dist -type f | wc -l) fichiers prêts"
-
-      - name: Envoyer les fichiers
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      - uses: arduino/setup-task@v3
         with:
-          server: ${{ secrets.O2SWITCH_FTP_SERVER }}
-          username: ${{ secrets.O2SWITCH_FTP_USER }}
-          password: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          # Simulation : liste les modifications sans les appliquer.
-          dry-run: ${{ inputs.simulation || false }}
-          local-dir: ./dist/
-          server-dir: ${{ secrets.O2SWITCH_FTP_DIR }}
-          # Transfert incrémental : seuls les fichiers modifiés remontent.
-          state-name: .github-deploy-state.json
-          log-level: minimal
-          # Préservé côté serveur : renouvellement des certificats et
-          # répertoires gérés par l'hébergeur.
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .well-known/**
-            cgi-bin/**
-            .htpasswd
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Contrôler le site en ligne
-        if: ${{ !inputs.simulation }}
-        run: |
-          sleep 10
-          for url in https://docteurbauwens.be/ https://docteurbauwens.be/sitemap.xml; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' -L --max-time 30 "$url")
-            echo "$code  $url"
-            [[ "$code" == "200" ]] || { echo "::error::$url répond $code"; exit 1; }
-          done
-          if curl -sS --max-time 30 https://docteurbauwens.be/ | grep -q "${GITHUB_SHA::8}"; then
-            echo "Version ${GITHUB_SHA::8} bien en ligne"
-          else
-            echo "::warning::La version déployée n'apparaît pas encore (cache ?)"
-          fi
+      - name: Installer lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Vérifier les prérequis
+        run: task doctor
+
+      - name: Déployer
+        run: task ${{ inputs.simulation && 'deploy:dry' || 'deploy' }}
