@@ -17,6 +17,11 @@ on:
     branches: [main]
     paths-ignore: ['**.md']
   workflow_dispatch:
+    inputs:
+      simulation:
+        description: "Simulation : montre ce qui serait envoyé, sans rien écrire"
+        type: boolean
+        default: false
 
 concurrency:
   group: deploiement-production
@@ -57,6 +62,8 @@ jobs:
           password: ${{ secrets.O2SWITCH_FTP_PASSWORD }}
           protocol: ftps
           port: 21
+          # Simulation : liste les modifications sans les appliquer.
+          dry-run: ${{ inputs.simulation || false }}
           local-dir: ./dist/
           server-dir: ${{ secrets.O2SWITCH_FTP_DIR }}
           # Transfert incrémental : seuls les fichiers modifiés remontent.
@@ -72,6 +79,7 @@ jobs:
             .htpasswd
 
       - name: Contrôler le site en ligne
+        if: ${{ !inputs.simulation }}
         run: |
           sleep 10
           for url in https://docteurbauwens.be/ https://docteurbauwens.be/sitemap.xml; do
