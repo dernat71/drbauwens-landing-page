@@ -65,6 +65,8 @@ seuls les enrichissements disparaissent.
 | Outil | Quand | Où |
 |---|---|---|
 | **Node + npm** | compilation du CSS | votre machine, runner GitHub |
+| **go-task** | orchestration du déploiement | votre machine, runner GitHub |
+| **lftp** | transfert FTPS | votre machine, runner GitHub |
 | **Python + uv + Playwright** | vérifications visuelles | votre machine uniquement |
 | **Google Fonts** | Literata, Public Sans | chargées par le visiteur |
 
@@ -75,33 +77,45 @@ Ni Node ni Python ne tournent sur le serveur.
 ## Comment le site est déployé
 
 ```
-  votre machine          GitHub Actions                    o2switch
-  ─────────────          ──────────────                    ────────
-  git push main  ───►   npm ci                             
-                        npm run build   (Tailwind → CSS)
-                        package.sh      (→ dist/)
-                        ouvre le pare-feu  ──(API cPanel)──►  SshWhitelist/add
-                        rsync --delete  ──────(SSH)────────►  public_html/
-                        referme le pare-feu ─(API cPanel)──►  SshWhitelist/remove
-                        vérifie que le site répond 200
+            ┌─────────────────────────────┐
+  task deploy ──►│  build → check → upload →   │──► o2switch
+            │     verify   (Taskfile)     │     public_html/
+  git push ──►   └─────────────────────────────┘     (FTPS, port 21)
+  (GitHub Actions appelle la même tâche)
 ```
+
+**Une seule implémentation du déploiement.** Le workflow GitHub Actions ne fait
+qu'appeler `task deploy` — exactement ce que vous lancez en local. Ce qui est
+testé à la main est donc ce qui tourne automatiquement.
+
+```bash
+task              # liste les tâches
+task doctor       # vérifie outils et identifiants
+task deploy       # construit, contrôle, envoie, vérifie
+task deploy:dry   # simulation, sans rien écrire
+```
+
+En local les identifiants viennent de `.env` ; en CI, des secrets GitHub. Task
+ignore un `.env` absent, et une variable d'environnement prime toujours sur le
+fichier — les deux usages cohabitent sans configuration.
 
 Trois particularités valent d'être connues :
 
-**Le pare-feu s'ouvre et se referme.** o2switch n'accepte le SSH que depuis des
-IP autorisées, et plafonne à 5 exceptions. Les runners GitHub changeant d'IP à
-chaque exécution, le job ajoute la sienne via l'API cPanel puis la retire —
-avec `if: always()`, pour que l'emplacement soit libéré même en cas d'échec.
+**L'envoi se fait en FTPS, pas en SSH.** Chez o2switch, le port 22 n'est ouvert
+qu'aux IP inscrites en liste blanche (5 maximum) — incompatible avec des
+runners dont l'IP change à chaque exécution. Le port 21 est lui accessible
+sans restriction, et FTPS chiffre la connexion. Le transfert est incrémental :
+seuls les fichiers modifiés remontent.
 
 **La version des assets est automatique.** Le `?v=` des liens CSS/JS est
 remplacé par le SHA court du commit. Impossible d'oublier de l'incrémenter.
 
-**Un garde-fou précède le `rsync --delete`.** Le job s'arrête si `index.html`,
-`.htaccess` ou le CSS manquent dans `dist/` — un dossier vide effacerait le
-site en production.
+**Un garde-fou précède l'envoi.** Le job s'arrête si `index.html`,
+`.htaccess` ou le CSS manquent dans `dist/`, pour qu'une construction
+incomplète ne parte jamais en ligne.
 
-La marche à suivre complète (bascule depuis WordPress, secrets GitHub, clés
-SSH) est dans **[DEPLOIEMENT.md](DEPLOIEMENT.md)**.
+La marche à suivre complète (bascule depuis WordPress, compte FTP, secrets
+GitHub) est dans **[DEPLOIEMENT.md](DEPLOIEMENT.md)**.
 
 ### Sans la CI
 

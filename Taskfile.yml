@@ -1,0 +1,154 @@
+# Déploiement du site du Dr Bauwens.
+#
+# Même chemin de code en local et en CI : le workflow GitHub Actions appelle
+# ces mêmes tâches. Il n'existe donc qu'une seule implémentation du
+# déploiement, et ce qui est testé à la main est exactement ce qui tourne
+# automatiquement.
+#
+#   task                 liste les tâches
+#   task doctor          vérifie les prérequis
+#   task deploy          construit, contrôle, envoie, vérifie
+#   task deploy:dry      idem, sans rien écrire sur le serveur
+#
+# Identifiants : lus depuis .env en local. En CI le fichier n'existe pas —
+# task l'ignore sans erreur et les secrets GitHub prennent le relais. Une
+# variable d'environnement prime toujours sur le fichier.
+
+version: '3'
+
+dotenv: ['.env']
+
+vars:
+  DIST: dist
+  SITE: https://docteurbauwens.be
+  # Préservés côté serveur : gérés par l'hébergeur, absents de dist/
+  GARDER: >-
+    -x ^\.well-known/ -x ^cgi-bin/ -x ^\.htpasswd$ -x ^\.ftpquota$
+
+tasks:
+  default:
+    desc: Liste les tâches disponibles
+    cmds: [task --list]
+    silent: true
+
+  doctor:
+    desc: Vérifie que tout est en place avant un déploiement
+    silent: true
+    cmds:
+      - |
+        manque=0
+        for o in node npm lftp curl; do
+          if command -v $o >/dev/null; then echo "  ✓ $o"
+          else echo "  ✗ $o manquant"; manque=1; fi
+        done
+        for v in O2SWITCH_FTP_SERVER O2SWITCH_FTP_USER O2SWITCH_FTP_PASSWORD O2SWITCH_FTP_DIR; do
+          if [ -n "$(eval echo \$$v)" ]; then echo "  ✓ $v"
+          else echo "  ✗ $v non défini"; manque=1; fi
+        done
+        echo
+        [ $manque -eq 0 ] && echo "  Prêt à déployer." || {
+          echo "  lftp s'installe avec : brew install lftp  (macOS)"
+          echo "  Les identifiants se placent dans .env — voir DEPLOIEMENT.md"
+          exit 1; }
+
+  install:
+    desc: Installe les dépendances de construction
+    cmds: [npm ci]
+    sources: [package-lock.json]
+    generates: [node_modules/.package-lock.json]
+
+  build:
+    desc: Compile le CSS et prépare dist/
+    deps: [install]
+    cmds:
+      - npm run build
+      - |
+        # La version des assets suit le commit : impossible d'oublier de
+        # l'incrémenter. Un arbre modifié reçoit un suffixe horodaté, sinon
+        # deux contenus différents partageraient la même URL.
+        sha=$(echo "${GITHUB_SHA:-$(git rev-parse HEAD)}" | cut -c1-8)
+        if [ -z "$GITHUB_SHA" ] && ! git diff --quiet HEAD -- . ':!.env'; then
+          sha="$sha-$(date +%H%M%S)"
+          echo "  arbre modifié → version $sha"
+        fi
+        ASSET_VERSION="$sha" bash package.sh --no-zip
+
+  check:
+    desc: Garde-fous sur le contenu de dist/
+    silent: true
+    cmds:
+      - |
+        for f in {{.DIST}}/index.html {{.DIST}}/.htaccess {{.DIST}}/assets/css/site.css; do
+          [ -s "$f" ] || { echo "  ✗ $f manquant ou vide"; exit 1; }
+        done
+        echo "  ✓ $(find {{.DIST}} -type f | wc -l | tr -d ' ') fichiers prêts"
+
+  upload:
+    desc: Envoie dist/ sur o2switch en FTPS
+    deps: [check]
+    preconditions:
+      - sh: '[ -n "$O2SWITCH_FTP_SERVER" ]'
+        msg: "O2SWITCH_FTP_SERVER non défini (voir .env ou les secrets GitHub)"
+      - sh: '[ -n "$O2SWITCH_FTP_USER" ]'
+        msg: "O2SWITCH_FTP_USER non défini"
+      - sh: '[ -n "$O2SWITCH_FTP_PASSWORD" ]'
+        msg: "O2SWITCH_FTP_PASSWORD non défini"
+      - sh: '[ -n "$O2SWITCH_FTP_DIR" ]'
+        msg: "O2SWITCH_FTP_DIR non défini"
+    cmds:
+      - task: _mirror
+        vars: {OPTIONS: '--delete'}
+
+  upload:dry:
+    desc: Montre ce qui serait envoyé, sans rien écrire
+    deps: [check]
+    cmds:
+      - task: _mirror
+        vars: {OPTIONS: '--delete --dry-run'}
+
+  _mirror:
+    internal: true
+    cmds:
+      # --env-password : le mot de passe ne transite jamais par la ligne de
+      # commande, donc reste invisible dans ps et dans l'historique.
+      - |
+        LFTP_PASSWORD="$O2SWITCH_FTP_PASSWORD" lftp \
+          -u "$O2SWITCH_FTP_USER" --env-password \
+          -e "set ftp:ssl-force true; \
+              set ftp:ssl-protect-data true; \
+              set ssl:verify-certificate true; \
+              set net:max-retries 3; \
+              set net:timeout 20; \
+              mirror --reverse --verbose {{.OPTIONS}} --parallel=4 \
+                {{.GARDER}} \
+                {{.DIST}}/ '$O2SWITCH_FTP_DIR'; \
+              bye" \
+          "$O2SWITCH_FTP_SERVER"
+
+  verify:
+    desc: Contrôle que le site répond en ligne
+    silent: true
+    cmds:
+      - |
+        for u in {{.SITE}}/ {{.SITE}}/sitemap.xml; do
+          c=$(curl -sS -o /dev/null -w '%{http_code}' -L --max-time 30 "$u")
+          echo "  $c  $u"
+          [ "$c" = "200" ] || exit 1
+        done
+
+  deploy:
+    desc: Construit, contrôle, envoie et vérifie
+    cmds:
+      - task: build
+      - task: upload
+      - task: verify
+
+  deploy:dry:
+    desc: Simulation complète, sans rien écrire sur le serveur
+    cmds:
+      - task: build
+      - task: upload:dry
+
+  serve:
+    desc: Prévisualise le site en local, sans cache
+    cmds: [python3 serve.py]
