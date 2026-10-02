@@ -116,6 +116,12 @@ Une annonce portant `data-alerte="non"` n'y remonte pas (réservé aux
 informations positives). S'il ne reste aucune annonce à signaler, le bandeau
 disparaît de lui-même.
 
+Sous ce bandeau, un **second petit bandeau permanent** « Nouveaux patients »
+renvoie vers la carte `#nouveaux-patients` (marquée `data-bandeau="patients"`,
+et aussi `data-alerte="non"` pour ne pas remonter deux fois). Résultat : toujours
+un bandeau au minimum (patients), deux au maximum quand une annonce est active.
+Supprimer cette carte fait disparaître le bandeau permanent.
+
 Avec une seule carte, la grille est `mx-auto mt-12 grid max-w-xl gap-6` ;
 avec plusieurs, repasser à `mt-12 grid gap-6 lg:grid-cols-3`.
 

@@ -91,7 +91,7 @@
     const lien = document.createElement('a');
     lien.href = '#infos';
     lien.className =
-      'group mb-9 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[1.375rem] ' +
+      'group flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[1.375rem] ' +
       'border border-ink/10 bg-white/85 px-4 py-3.5 backdrop-blur-sm sm:px-5 sm:py-4 ' +
       'shadow-[0_18px_44px_-30px_rgba(25,13,57,.55)] transition ' +
       'hover:-translate-y-0.5 hover:border-ink/20 hover:bg-white ' +
@@ -169,6 +169,50 @@
         return c ? `${c}, ${t}` : t;
       }).join(' ; ') + '. Voir le détail.');
 
+    zone.append(lien);
+  }
+
+  /* ---------- Bandeau permanent « Nouveaux patients » ----------
+     Toujours présent, sous le bandeau des annonces quand il y en a un.
+     Construit à partir de la carte data-bandeau="patients" de #infos. */
+  const patients = document.querySelector('#infos article[data-bandeau="patients"]');
+
+  if (zone && patients) {
+    const categorie = patients.querySelector('span')?.textContent.trim() ?? 'Nouveaux patients';
+    const titre = patients.querySelector('h3')?.textContent.trim() ?? '';
+
+    const lien = document.createElement('a');
+    lien.href = '#' + (patients.id || 'infos');
+    lien.className =
+      'group flex items-center gap-3 rounded-[1.375rem] border border-ink/10 bg-white/85 ' +
+      'px-4 py-3 backdrop-blur-sm sm:gap-4 sm:px-5 ' +
+      'shadow-[0_18px_44px_-30px_rgba(25,13,57,.55)] transition ' +
+      'hover:-translate-y-0.5 hover:border-ink/20 hover:bg-white ' +
+      'hover:shadow-[0_22px_50px_-28px_rgba(25,13,57,.6)]';
+    lien.setAttribute('aria-label', `${categorie} : ${titre}. Voir les informations.`);
+
+    const pastille = document.createElement('span');
+    pastille.className =
+      'shrink-0 whitespace-nowrap rounded-full bg-sky px-3.5 py-1.5 text-[.8125rem] font-bold leading-snug text-ink';
+    pastille.textContent = categorie;
+
+    const texte = document.createElement('span');
+    texte.className = 'flex-1 text-[.8125rem] font-medium leading-snug text-ink';
+    texte.textContent = titre;
+
+    const fleche = document.createElement('span');
+    fleche.className = 'ml-auto flex shrink-0 items-center gap-2.5';
+    fleche.setAttribute('aria-hidden', 'true');
+    fleche.innerHTML =
+      '<span class="hidden text-xs font-medium text-muted transition group-hover:text-ink sm:inline">' +
+        'Les informations ici</span>' +
+      '<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink/[.06] text-ink ' +
+        'transition group-hover:bg-ink group-hover:text-white lg:h-8 lg:w-8">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>' +
+      '</span>';
+
+    lien.append(pastille, texte, fleche);
     zone.append(lien);
   }
 
