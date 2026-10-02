@@ -184,31 +184,33 @@
     const lien = document.createElement('a');
     lien.href = '#' + (patients.id || 'infos');
     lien.className =
-      'group flex items-center gap-3 self-start rounded-[1.375rem] border border-ink/10 bg-white/70 ' +
-      'py-1.5 pl-1.5 pr-2 text-[.8125rem] leading-snug text-ink backdrop-blur-sm transition sm:rounded-full ' +
-      'hover:border-ink/20 hover:bg-white';
+      'group flex items-center gap-3 rounded-[1.375rem] border border-ink/10 bg-white/85 ' +
+      'px-4 py-3 backdrop-blur-sm sm:gap-4 sm:px-5 ' +
+      'shadow-[0_18px_44px_-30px_rgba(25,13,57,.55)] transition ' +
+      'hover:-translate-y-0.5 hover:border-ink/20 hover:bg-white ' +
+      'hover:shadow-[0_22px_50px_-28px_rgba(25,13,57,.6)]';
     lien.setAttribute('aria-label', `${categorie} : ${titre}. Voir les informations.`);
 
     const pastille = document.createElement('span');
-    pastille.className = 'shrink-0 whitespace-nowrap rounded-full bg-sky px-3 py-1 font-bold';
+    pastille.className =
+      'shrink-0 whitespace-nowrap rounded-full bg-sky px-3.5 py-1.5 text-[.8125rem] font-bold leading-snug text-ink';
     pastille.textContent = categorie;
 
     const texte = document.createElement('span');
-    texte.className = 'font-medium';
-    texte.append(titre ? `${titre} — ` : '');
-    const ici = document.createElement('span');
-    ici.className = 'underline decoration-ink/30 underline-offset-2 group-hover:decoration-ink';
-    ici.textContent = 'les informations ici';
-    texte.append(ici);
+    texte.className = 'flex-1 text-[.8125rem] font-medium leading-snug text-ink';
+    texte.textContent = titre;
 
     const fleche = document.createElement('span');
-    fleche.className =
-      'grid h-6 w-6 shrink-0 place-items-center rounded-full bg-ink/[.06] transition ' +
-      'group-hover:bg-ink group-hover:text-white';
+    fleche.className = 'ml-auto flex shrink-0 items-center gap-2.5';
     fleche.setAttribute('aria-hidden', 'true');
     fleche.innerHTML =
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
-      'stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>';
+      '<span class="hidden text-xs font-medium text-muted transition group-hover:text-ink sm:inline">' +
+        'Les informations ici</span>' +
+      '<span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ink/[.06] text-ink ' +
+        'transition group-hover:bg-ink group-hover:text-white lg:h-8 lg:w-8">' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>' +
+      '</span>';
 
     lien.append(pastille, texte, fleche);
     zone.append(lien);
