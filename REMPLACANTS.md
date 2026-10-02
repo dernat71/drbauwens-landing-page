@@ -1,8 +1,9 @@
 # Médecins remplaçants
 
 Coordonnées des confrères qui ont remplacé le Dr Bauwens lors de son absence
-de septembre 2026. Conservées ici pour n'avoir qu'à les reprendre lors des
-prochains congés, plutôt qu'à les rechercher.
+de septembre 2026, complétées depuis (Dr Mairesse, octobre 2026). Conservées
+ici pour n'avoir qu'à les reprendre lors des prochains congés, plutôt qu'à les
+rechercher.
 
 Ce fichier n'est **pas** publié : il ne sert qu'à préparer les annonces.
 
@@ -18,6 +19,7 @@ Ce fichier n'est **pas** publié : il ne sert qu'à préparer les annonces.
 | Dr De Ganseman Sophie | +32 64 44 98 88 | `+3264449888` |
 | Dr Flabat Olivier | +32 472 35 87 88 | `+32472358788` |
 | Dr Dupont David | +32 71 59 87 47 | `+3271598747` |
+| Dr Mairesse Timothée | +32 494 68 70 57 | `+32494687057` |
 
 ---
 
@@ -65,6 +67,10 @@ bandeau d'alerte en haut de page.
     <li class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
       <span class="font-medium text-ink">Dr Dupont David</span>
       <a href="tel:+3271598747" class="tabular-nums text-body transition hover:text-ink">+32 71 59 87 47</a>
+    </li>
+    <li class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+      <span class="font-medium text-ink">Dr Mairesse Timothée</span>
+      <a href="tel:+32494687057" class="tabular-nums text-body transition hover:text-ink">+32 494 68 70 57</a>
     </li>
   </ul>
 </article>
