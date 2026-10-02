@@ -19,6 +19,8 @@ Ce fichier n'est **pas** publié : il ne sert qu'à préparer les annonces.
 | Dr Flabat Olivier | +32 472 35 87 88 | `+32472358788` |
 | Dr Dupont David | +32 71 59 87 47 | `+3271598747` |
 | Dr Mairesse Timothée | +32 494 68 70 57 | `+32494687057` |
+| Dr De Zutter Mathilde | +32 493 20 26 36 | `+32493202636` |
+| Dr Papleux Jessica | +32 470 92 39 11 | `+32470923911` |
 
 ---
 
