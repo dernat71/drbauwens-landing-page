@@ -1,9 +1,8 @@
 # Médecins remplaçants
 
-Coordonnées des confrères qui ont remplacé le Dr Bauwens lors de son absence
-de septembre 2026, complétées depuis (Dr Mairesse, octobre 2026). Conservées
-ici pour n'avoir qu'à les reprendre lors des prochains congés, plutôt qu'à les
-rechercher.
+Coordonnées des confrères qui acceptent habituellement de remplacer le
+Dr Bauwens. Conservées ici pour n'avoir qu'à les reprendre lors des prochains
+congés, plutôt qu'à les rechercher.
 
 Ce fichier n'est **pas** publié : il ne sert qu'à préparer les annonces.
 
@@ -78,8 +77,7 @@ bandeau d'alerte en haut de page.
 
 ### Pensez à
 
-- Vérifier que chaque confrère est **toujours disponible** : cette liste date
-  de septembre 2026.
+- Vérifier que chaque confrère est **disponible** sur la période.
 - Repasser la grille de `#infos` en plusieurs colonnes si vous ajoutez
   plusieurs annonces :
   `class="mx-auto mt-12 grid max-w-xl gap-6"` → `class="mt-12 grid gap-6 lg:grid-cols-3"`
