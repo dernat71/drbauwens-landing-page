@@ -293,7 +293,9 @@
 
     <div class="grid items-center gap-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
 
-      <div class="reveal">
+      <!-- Pas de .reveal dans le hero : un élément en opacity:0 jusqu'à l'exécution
+           de site.js retarde le LCP mobile (signalé par Search Console). -->
+      <div>
         <h1 class="text-[2.6rem] leading-[1.08] sm:text-6xl lg:text-[4.1rem]">
           <span class="eyebrow mb-5 block font-sans leading-normal">Médecin généraliste à Grand-Reng &amp; Erquelinnes</span>
           Bienvenue chez le<br>Docteur <span class="accent">Bauwens</span>
@@ -315,7 +317,7 @@
         </div>
       </div>
 
-      <figure class="reveal" style="transition-delay:.12s">
+      <figure>
         <picture>
           <source type="image/webp" srcset="/assets/img/consultation-800.webp 800w, /assets/img/consultation-1400.webp 1400w" sizes="(min-width:1024px) 40rem, 100vw">
           <img src="/assets/img/consultation-1400.png"
